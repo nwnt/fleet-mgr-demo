@@ -43,23 +43,31 @@
                         "UserAssigned",
                         "SystemAssigned"
                     ]
+                },
+                {
+                  "field": "Microsoft.ContainerService/managedClusters/nodeResourceGroup",
+                  "notLike": "MC_FL_*"
+                },
+                {
+                  "field": "name",
+                  "notEquals": "hub"
                 }
             ]
         },
         "then": {
             "effect": "deployIfNotExists",
             "details": {
-                "type": "Microsoft.ContainerService/fleets/members",
+                "type": "Microsoft.ContainerService/fleetMemberships",
+                "name": "default",
                 "existenceScope": "subscription",
                 "existenceCondition": {
                     "allOf": [
                         {
-                            "field": "Microsoft.ContainerService/fleets/members/clusterResourceId",
-                            "equals": "[field('id')]"
+                          "field": "id",
+                          "exists": "true"
                         }
                     ]
                 },
-                "resourceGroupName": "[parameters('fleet-resource-group')]",
                 "deployment": {
                     "properties": {
                         "mode": "incremental",
@@ -67,19 +75,43 @@
                             "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
                             "contentVersion": "1.0.0.0",
                             "parameters": {
-                                "fullDbName": {
-                                    "type": "string"
+                                "fleet-name": {
+                                  "type": "string"
+                                },
+                                "fleet-resource-group": {
+                                  "type": "string"
+                                },
+                                "fleet-subscription-id": {
+                                  "type": "string"
+                                },
+                                "cluster-resource-id": {
+                                  "type": "string"
                                 }
                             },
                             "resources": [
                                 {
-                                    "apiVersion": "2024-04-01",
-                                    "type": "Microsoft.ContainerService/fleets/members",
-                                    "name": "[concat(parameters('fleet-name'), '/', parameters('member-name'))]",
-                                    "properties": {
-                                        "clusterResourceId": "[parameters('cluster-resource-id')]",
-                                        "group": "auto"
+                                  "name": "[concat('join-with-fleet-', parameters('fleet-name'))]",
+                                  "type": "Microsoft.Resources/deployments",
+                                  "apiVersion": "2022-09-01",
+                                  "subscriptionId": "[parameters('fleet-subscription-id')]",
+                                  "resourceGroup": "[parameters('fleet-resource-group')]",
+                                  "properties": {
+                                    "mode": "Incremental",
+                                    "template": {
+                                      "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                                      "contentVersion": "1.0.0.0",
+                                      "resources": [
+                                        {
+                                          "type": "Microsoft.ContainerService/fleets/members",
+                                          "apiVersion": "2024-05-02-preview",
+                                          "name": "[concat(parameters('fleet-name'), '/', parameters('member-name'))]",
+                                          "properties": {
+                                            "clusterResourceId": "[parameters('cluster-resource-id')]"
+                                          }
+                                        }
+                                      ]
                                     }
+                                  }
                                 }
                             ]
                         }
@@ -90,6 +122,12 @@
                         },
                         "fleet-name": {
                             "value": "[parameters('fleet-name')]"
+                        },
+                        "fleet-resource-group": {
+                            "value": "[parameters('fleet-resource-group')]"
+                        },
+                        "fleet-subscription-id": {
+                            "value": "[parameters('fleet-subscription-id')]"
                         },
                         "cluster-resource-id": {
                             "value": "[field('id')]"
